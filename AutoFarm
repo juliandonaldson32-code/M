@@ -2,41 +2,35 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local TeleportService = game:GetService("TeleportService")
-local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 
-local CLICK_OFFSET_Y = 50
-
--- Persistent globals
+-- ===== GLOBAL STATE =====
 _G.farmLoopRunning = _G.farmLoopRunning or false
 _G.relogCount = _G.relogCount or 0
 _G.moneyEarned = _G.moneyEarned or 0
 _G.startTime = _G.startTime or os.time()
 _G.initialStartDone = _G.initialStartDone or false
 
--- Farm OFF by default
 local farmEnabled = false
 
--- Toggle key (M)
+-- ===== TOGGLE (M) =====
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.M then
         farmEnabled = not farmEnabled
         print("[HAVOC FARM] Toggle:", farmEnabled and "ON" or "OFF")
 
-        -- First time you toggle ON → reset counters
         if farmEnabled and not _G.initialStartDone then
             _G.initialStartDone = true
             _G.relogCount = 0
             _G.moneyEarned = 0
             _G.startTime = os.time()
-            print("[HAVOC FARM] Starting fresh counters.")
+            print("[HAVOC FARM] Counters reset.")
         end
     end
 end)
 
--- Format runtime
+-- ===== HELPERS =====
 local function formatTime(seconds)
     local h = math.floor(seconds / 3600)
     local m = math.floor((seconds % 3600) / 60)
@@ -44,237 +38,126 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
--- Volt click
 local function voltClick(x, y)
     mousemoveabs(x, y)
-    task.wait(0.05)
+    task.wait(0.02)
     mouse1press()
-    task.wait(0.05)
+    task.wait(0.02)
     mouse1release()
 end
 
-local function clickObject(obj)
-    if not obj or not obj:IsA("GuiObject") then return end
-    local x = obj.AbsolutePosition.X + obj.AbsoluteSize.X / 2
-    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y / 2 + CLICK_OFFSET_Y
-    voltClick(x, y)
-    if obj:IsA("GuiButton") then
-        pcall(function()
-            if obj.MouseButton1Click then obj.MouseButton1Click:Fire() end
-            if obj.Activated then obj.Activated:Fire() end
-        end)
+local function runClickStage(label, waitBefore, coords, perClickDelay)
+    print("\n[STAGE]", label)
+    task.wait(waitBefore)
+    for _, c in ipairs(coords) do
+        local x, y = c[1], c[2]
+        print("Click:", label, "→ X=" .. x .. " Y=" .. y)
+        voltClick(x, y)
+        task.wait(perClickDelay)
     end
 end
 
-local function clickCenter()
-    local viewport = Workspace.CurrentCamera.ViewportSize
-    voltClick(viewport.X/2, viewport.Y/2)
-end
+-- ===== COORDINATE MAP (FULLSCREEN) =====
+local stages = {
+    {
+        label = "Skip to Main Menu",
+        wait = 0.5,
+        perClick = 0.15,
+        coords = {
+            {968, 597},
+        }
+    },
+    {
+        label = "Main Menu → Traders",
+        wait = 0.5,
+        perClick = 0.15,
+        coords = {
+            {866, 1062},
+        }
+    },
+    {
+        label = "Click Trader (Dragov)",
+        wait = 0.5,
+        perClick = 0.15,
+        coords = {
+            {646, 452},
+            {646, 452},
+        }
+    },
+    {
+        label = "Click Trader Dialogue Choice",
+        wait = 0.4,
+        perClick = 0.15,
+        coords = {
+            {662, 852},
+        }
+    },
+    {
+        label = "Back to Inventory",
+        wait = 0.5,
+        perClick = 0.15,
+        coords = {
+            {159, 86},
+        }
+    },
+    {
+        label = "Open Sell Menu",
+        wait = 0.5,
+        perClick = 0.15,
+        coords = {
+            {1293, 164},
+        }
+    },
+    {
+        label = "Click All Sellable Items",
+        wait = 0.02,
+        perClick = 0.08,
+        coords = {
+            {1293, 164},  -- 1
+            {986, 186},   -- 2
+            {924, 185},   -- 3
+            {860, 189},   -- 4
+            {808, 182},   -- 5
+            {805, 244},   -- 6
+            {882, 251},   -- 7
+            {655, 412},   -- 8
+            {243, 418},   -- 9
+            {245, 268},   -- 10
+            {652, 279},   -- 11
+            {224, 535},   -- 12
+            {344, 682},   -- 13
+            {274, 793},   -- 14
+            {585, 796},   -- 15
+            {652, 537},   -- 16
+            {634, 665},   -- 17
+        }
+    },
+    {
+        label = "Final Sell Confirm",
+        wait = 0.5,
+        perClick = 0.2,
+        coords = {
+            {1185, 884},
+        }
+    },
+}
 
--- Anti‑stuck timeout wrapper
-local function safeWaitFor(conditionFunc, timeout)
-    local expire = os.time() + timeout
-    while os.time() < expire do
-        if conditionFunc() then return true end
-        task.wait(0.1)
-    end
-    return false
-end
-
--- SAFE DIALOGUE HANDLER
-local function handleDialogue()
-    local ui = PlayerGui:FindFirstChild("UI")
-    if not ui then return end
-
-    local temp = ui:FindFirstChild("temp")
-    if not temp then return end
-
-    local dialogueFrame = temp:FindFirstChild("dialogueFrame")
-    if not dialogueFrame then return end
-
-    local timeout = os.time() + 10
-
-    while os.time() < timeout do
-        dialogueFrame = temp:FindFirstChild("dialogueFrame")
-        if not dialogueFrame then break end
-
-        clickCenter()
-        task.wait(0.1)
-
-        local main = dialogueFrame:FindFirstChild("main")
-        if main then
-            local choices = main:FindFirstChild("dialogueChoices")
-            if choices then
-                local choice1 = choices:FindFirstChild("1")
-                if choice1 then
-                    clickObject(choice1)
-                    task.wait(0.1)
-                end
-            end
-        end
-    end
-end
-
-local function sellAll()
-    local ui = PlayerGui:FindFirstChild("UI")
-    if not ui then return end
-
-    local inventoryCategory = ui:FindFirstChild("inventoryCategory")
-    if inventoryCategory then
-        local overall = inventoryCategory:FindFirstChild("overall")
-        if overall then
-            clickObject(overall)
-            task.wait(0.25)
-        end
-    end
-
-    local hud = ui:FindFirstChild("HUD")
-    if not hud then return end
-
-    local backpack = hud:FindFirstChild("backpackFrame")
-    if not backpack then return end
-
-    local trader = backpack:FindFirstChild("traderCenterFrame") or backpack:FindFirstChild("trader")
-    if not trader then return end
-
-    local tradesellswitch = trader:FindFirstChild("traderSellButton")
-    local realsellbutton = trader:FindFirstChild("dealButtonFrame") and trader.dealButtonFrame:FindFirstChild("dealButton")
-
-    if not tradesellswitch or not realsellbutton then return end
-
-    task.wait(0.25)
-    clickObject(tradesellswitch)
-
-    local playerContainer = backpack:FindFirstChild("player")
-    if not playerContainer then return end
-
-    local pocket = nil
-    for _, child in ipairs(playerContainer:GetChildren()) do
-        if child:IsA("Frame") and child.Name == "inventoryFrame" and child:GetAttribute("childrens") == 8 then
-            pocket = child
-            break
-        end
-    end
-
-    if not pocket then return end
-
-    local itemsContainer = pocket:FindFirstChild("items") or pocket
-    for _, itemFrame in ipairs(itemsContainer:GetChildren()) do
-        if itemFrame:IsA("Frame") then
-            local button = itemFrame:FindFirstChild("button")
-            if button then
-                clickObject(button)
-                task.wait(0.05)
-            end
-        end
-    end
-
-    local status = backpack:FindFirstChild("status")
-    if status then
-        local overall = status:FindFirstChild("overallFrame")
-        if overall then
-            local equipSlots = overall:FindFirstChild("equipment") and overall.equipment:FindFirstChild("slots")
-            if equipSlots then
-                for _, slot in ipairs(equipSlots:GetChildren()) do
-                    if slot:IsA("Frame") and slot:FindFirstChildOfClass("ObjectValue") then
-                        clickObject(slot:FindFirstChild("button") or slot)
-                        task.wait(0.05)
-                    end
-                end
-            end
-
-            local weaponSlots = overall:FindFirstChild("weapons") and overall.weapons:FindFirstChild("slots")
-            if weaponSlots then
-                for _, slot in ipairs(weaponSlots:GetChildren()) do
-                    if slot:IsA("Frame") and slot:FindFirstChildOfClass("ObjectValue") then
-                        clickObject(slot:FindFirstChild("button") or slot)
-                        task.wait(0.05)
-                    end
-                end
-            end
-        end
-    end
-
-    clickObject(realsellbutton)
-    task.wait(0.5)
-end
-
-local function checkPrompt()
-    local ui = PlayerGui:FindFirstChild("UI")
-    if not ui then return false end
-
-    local prompt = ui:FindFirstChild("__prompt")
-    if not prompt then return false end
-
-    local promptButtons = prompt:FindFirstChild("promptButtons")
-    if not promptButtons then return false end
-
-    local promptButton1 = promptButtons:FindFirstChild("promptButton1")
-    if promptButton1 and promptButton1.Visible then
-        clickObject(promptButton1)
-        task.wait(0.5)
-        return true
-    end
-
-    return false
-end
-
-local function waitForMainMenu()
-    return safeWaitFor(function()
-        clickCenter()
-        local ui = PlayerGui:FindFirstChild("UI")
-        return ui and ui:FindFirstChild("mainMenuFrame") and ui.mainMenuFrame:FindFirstChild("lobbyBottom") and ui.mainMenuFrame.lobbyBottom.Visible
-    end, 15)
-end
-
--- MAIN LOOP
+-- ===== MAIN LOOP =====
 while true do
     if farmEnabled then
-        if not waitForMainMenu() then
-            print("[HAVOC FARM] Stuck waiting for main menu — retrying")
-            continue
+        print("\n[HAVOC FARM] Cycle start")
+
+        for _, stage in ipairs(stages) do
+            runClickStage(stage.label, stage.wait, stage.coords, stage.perClick)
         end
 
-        for _ = 1, 5 do
-            if checkPrompt() then break end
-            task.wait(0.1)
-        end
-
-        local ui = PlayerGui:FindFirstChild("UI")
-        local lobbyBottom = ui and ui.mainMenuFrame and ui.mainMenuFrame.lobbyBottom
-
-        if lobbyBottom then
-            local traders = lobbyBottom.main and lobbyBottom.main.traders
-            if traders then
-                clickObject(traders)
-                task.wait(0.5)
-            end
-        end
-
-        local traderList = ui and ui.HUD and ui.HUD.traderListFrame
-        if traderList then
-            local contents = traderList.contents
-            if contents then
-                local dragov = contents:FindFirstChild("Dragov") or contents:FindFirstChildWhichIsA("TextButton")
-                if dragov then
-                    clickObject(dragov)
-                    task.wait(0.5)
-                end
-            end
-        end
-
-        handleDialogue()
-        sellAll()
-
-        -- Counters (first teleport counts as 1)
         if _G.initialStartDone then
             _G.relogCount = (_G.relogCount % 100) + 1
-            _G.moneyEarned += 7446
+            _G.moneyEarned = _G.moneyEarned + 7446
         end
 
         local runtime = os.time() - _G.startTime
-
-        print("\n[HAVOC FARM]")
+        print("\n[HAVOC FARM STATUS]")
         print("Relogs:", _G.relogCount, "/ 100")
         print("Money Earned:", _G.moneyEarned)
         print("Runtime:", formatTime(runtime))
