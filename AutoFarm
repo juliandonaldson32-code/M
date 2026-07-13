@@ -3,41 +3,16 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
 
 -- ===== GLOBAL STATE =====
-_G.farmLoopRunning = _G.farmLoopRunning or false
 _G.relogCount = _G.relogCount or 0
 _G.moneyEarned = _G.moneyEarned or 0
 _G.startTime = _G.startTime or os.time()
-_G.initialStartDone = _G.initialStartDone or false
 
-local farmEnabled = false
+-- ===== WAIT 5 SECONDS BEFORE START =====
+task.wait(5)
 
--- ===== TOGGLE (M) =====
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.M then
-        farmEnabled = not farmEnabled
-        print("[HAVOC FARM] Toggle:", farmEnabled and "ON" or "OFF")
-
-        if farmEnabled and not _G.initialStartDone then
-            _G.initialStartDone = true
-            _G.relogCount = 0
-            _G.moneyEarned = 0
-            _G.startTime = os.time()
-            print("[HAVOC FARM] Counters reset.")
-        end
-    end
-end)
-
--- ===== HELPERS =====
-local function formatTime(seconds)
-    local h = math.floor(seconds / 3600)
-    local m = math.floor((seconds % 3600) / 60)
-    local s = seconds % 60
-    return string.format("%02d:%02d:%02d", h, m, s)
-end
-
+-- ===== CLICK FUNCTION =====
 local function voltClick(x, y)
     mousemoveabs(x, y)
     task.wait(0.02)
@@ -46,126 +21,89 @@ local function voltClick(x, y)
     mouse1release()
 end
 
-local function runClickStage(label, waitBefore, coords, perClickDelay)
-    print("\n[STAGE]", label)
-    task.wait(waitBefore)
-    for _, c in ipairs(coords) do
-        local x, y = c[1], c[2]
-        print("Click:", label, "→ X=" .. x .. " Y=" .. y)
-        voltClick(x, y)
-        task.wait(perClickDelay)
-    end
-end
-
--- ===== COORDINATE MAP (FULLSCREEN) =====
-local stages = {
-    {
-        label = "Skip to Main Menu",
-        wait = 0.5,
-        perClick = 0.15,
-        coords = {
-            {968, 597},
-        }
-    },
-    {
-        label = "Main Menu → Traders",
-        wait = 0.5,
-        perClick = 0.15,
-        coords = {
-            {866, 1062},
-        }
-    },
-    {
-        label = "Click Trader (Dragov)",
-        wait = 0.5,
-        perClick = 0.15,
-        coords = {
-            {646, 452},
-            {646, 452},
-        }
-    },
-    {
-        label = "Click Trader Dialogue Choice",
-        wait = 0.4,
-        perClick = 0.15,
-        coords = {
-            {662, 852},
-        }
-    },
-    {
-        label = "Back to Inventory",
-        wait = 0.5,
-        perClick = 0.15,
-        coords = {
-            {159, 86},
-        }
-    },
-    {
-        label = "Open Sell Menu",
-        wait = 0.5,
-        perClick = 0.15,
-        coords = {
-            {1293, 164},
-        }
-    },
-    {
-        label = "Click All Sellable Items",
-        wait = 0.02,
-        perClick = 0.08,
-        coords = {
-            {1293, 164},  -- 1
-            {986, 186},   -- 2
-            {924, 185},   -- 3
-            {860, 189},   -- 4
-            {808, 182},   -- 5
-            {805, 244},   -- 6
-            {882, 251},   -- 7
-            {655, 412},   -- 8
-            {243, 418},   -- 9
-            {245, 268},   -- 10
-            {652, 279},   -- 11
-            {224, 535},   -- 12
-            {344, 682},   -- 13
-            {274, 793},   -- 14
-            {585, 796},   -- 15
-            {652, 537},   -- 16
-            {634, 665},   -- 17
-        }
-    },
-    {
-        label = "Final Sell Confirm",
-        wait = 0.5,
-        perClick = 0.2,
-        coords = {
-            {1185, 884},
-        }
-    },
-}
-
 -- ===== MAIN LOOP =====
 while true do
-    if farmEnabled then
-        print("\n[HAVOC FARM] Cycle start")
+    print("\n[HAVOC FARM] Cycle start")
 
-        for _, stage in ipairs(stages) do
-            runClickStage(stage.label, stage.wait, stage.coords, stage.perClick)
-        end
+    --------------------------------------------------------------------
+    -- Skip to Main Menu
+    task.wait(0.5)
+    voltClick(968, 597)
+    task.wait(0.15)
 
-        if _G.initialStartDone then
-            _G.relogCount = (_G.relogCount % 100) + 1
-            _G.moneyEarned = _G.moneyEarned + 7446
-        end
+    --------------------------------------------------------------------
+    -- Main Menu → Traders
+    task.wait(0.5)
+    voltClick(866, 1062)
+    task.wait(0.15)
 
-        local runtime = os.time() - _G.startTime
-        print("\n[HAVOC FARM STATUS]")
-        print("Relogs:", _G.relogCount, "/ 100")
-        print("Money Earned:", _G.moneyEarned)
-        print("Runtime:", formatTime(runtime))
-        print("------------------------------------")
+    --------------------------------------------------------------------
+    -- Click Trader (Dragov)
+    task.wait(0.5)
+    voltClick(646, 452)
+    task.wait(0.15)
+    voltClick(646, 452)
+    task.wait(0.15)
 
-        TeleportService:Teleport(game.PlaceId)
-        task.wait(8)
+    --------------------------------------------------------------------
+    -- Dialogue Choice
+    task.wait(0.4)
+    voltClick(662, 852)
+    task.wait(0.15)
+
+    --------------------------------------------------------------------
+    -- Back to Inventory
+    task.wait(0.5)
+    voltClick(159, 86)
+    task.wait(0.15)
+
+    --------------------------------------------------------------------
+    -- Open Sell Menu
+    task.wait(0.5)
+    voltClick(1293, 164)
+    task.wait(0.15)
+
+    --------------------------------------------------------------------
+    -- Click All 17 Sellable Items
+    local items = {
+        {1293,164}, {986,186}, {924,185}, {860,189},
+        {808,182}, {805,244}, {882,251}, {655,412},
+        {243,418}, {245,268}, {652,279}, {224,535},
+        {344,682}, {274,793}, {585,796}, {652,537},
+        {634,665},
+    }
+
+    task.wait(0.02)
+    for _, pos in ipairs(items) do
+        voltClick(pos[1], pos[2])
+        task.wait(0.08)
     end
 
-    task.wait(0.1)
+    --------------------------------------------------------------------
+    -- Final Sell Confirm
+    task.wait(0.5)
+    voltClick(1185, 884)
+    task.wait(0.2)
+
+    --------------------------------------------------------------------
+    -- Counters
+    _G.relogCount = (_G.relogCount % 100) + 1
+    _G.moneyEarned = _G.moneyEarned + 7446
+
+    local runtime = os.time() - _G.startTime
+
+    print("\n[HAVOC FARM STATUS]")
+    print("Relogs:", _G.relogCount, "/ 100")
+    print("Money Earned:", _G.moneyEarned)
+    print("Runtime:", string.format("%02d:%02d:%02d",
+        math.floor(runtime/3600),
+        math.floor((runtime%3600)/60),
+        runtime%60
+    ))
+    print("------------------------------------")
+
+    --------------------------------------------------------------------
+    -- Teleport (rejoin)
+    TeleportService:Teleport(game.PlaceId)
+    task.wait(8)
 end
