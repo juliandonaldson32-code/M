@@ -1,0 +1,89 @@
+-- ============================
+-- HAVOC FARM CONTROLLER (Volt)
+-- ============================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+
+-- Safe LocalPlayer getter
+local function waitForLocalPlayer()
+    while not Players.LocalPlayer do
+        task.wait()
+    end
+    return Players.LocalPlayer
+end
+
+local lp = waitForLocalPlayer()
+
+-- Farm OFF by default
+_G.farmEnabled = false
+
+-- Persistent counters
+_G.relogCount = _G.relogCount or 0
+_G.moneyEarned = _G.moneyEarned or 0
+_G.startTime = _G.startTime or os.time()
+_G.initialStartDone = _G.initialStartDone or false
+
+-- Toggle key (M)
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.M then
+        _G.farmEnabled = not _G.farmEnabled
+        print("[HAVOC FARM] Toggle:", _G.farmEnabled and "ON" or "OFF")
+
+        -- First time you toggle ON → reset counters
+        if _G.farmEnabled and not _G.initialStartDone then
+            _G.initialStartDone = true
+            _G.relogCount = 0
+            _G.moneyEarned = 0
+            _G.startTime = os.time()
+            print("[HAVOC FARM] Starting fresh counters.")
+        end
+    end
+end)
+
+-- Format runtime
+local function formatTime(seconds)
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = seconds % 60
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+-- Load your GitHub farm script
+local function loadFarm()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/happybaggy/skid/main/havocfarm.lua"))()
+end
+
+-- MAIN CONTROLLER LOOP
+task.spawn(function()
+    while true do
+        if _G.farmEnabled then
+
+            -- Count relogs ONLY after first toggle ON
+            if _G.initialStartDone then
+                _G.relogCount = (_G.relogCount % 100) + 1
+                _G.moneyEarned += 7446
+            end
+
+            -- Runtime
+            local runtime = os.time() - _G.startTime
+
+            -- Terminal output
+            print("\n[HAVOC FARM]")
+            print("Relogs:", _G.relogCount, "/ 100")
+            print("Money Earned:", _G.moneyEarned)
+            print("Runtime:", formatTime(runtime))
+            print("------------------------------------")
+
+            -- Load your GitHub farm script
+            loadFarm()
+
+            -- Wait for your farm script to finish its cycle
+            task.wait(8)
+        end
+
+        task.wait(0.1)
+    end
+end)
+
