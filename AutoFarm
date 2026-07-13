@@ -227,14 +227,6 @@ local function waitForMainMenu()
     end, 15)
 end
 
--- Teleport re‑queue (no GitHub)
-local queueteleport = queue_on_teleport
-Players.LocalPlayer.OnTeleport:Connect(function()
-    if queueteleport then
-        queueteleport(game:HttpGet("https://raw.githubusercontent.com/juliandonaldson32-code/MoneyFarm/refs/heads/main/AutoFarm?token=GHSAT0AAAAAAECUVDZIUEQ66DWCQGOAGK6U2SU6XZA")) -- Volt will inline this script
-    end
-end)
-
 -- MAIN LOOP
 while true do
     if farmEnabled then
