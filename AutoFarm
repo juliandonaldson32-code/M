@@ -1,113 +1,160 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+-- ===== queue_on_teleport (AUTO-RESTART) =====
+local queueteleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+
+Players.LocalPlayer.OnTeleport:Connect(function()
+    if queueteleport then
+        queueteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/juliandonaldson32-code/M/main/AutoFarm'))()")
+    end
+end)
 
 -- ===== GLOBAL STATE =====
 _G.relogCount = _G.relogCount or 0
 _G.moneyEarned = _G.moneyEarned or 0
 _G.startTime = _G.startTime or os.time()
 
--- ===== STARTUP MESSAGE =====
+-- ===== STARTUP WARNING =====
 print("CLICK INTO THE GAME WINDOW — FARM STARTS IN 5 SECONDS")
 task.wait(5)
 
--- ===== CLICK FUNCTION =====
-local function voltClick(x, y)
-    mousemoveabs(x, y)
-    task.wait(0.02)
-    mouse1press()
-    task.wait(0.02)
-    mouse1release()
+-- ===== UI CLICKER =====
+local function clickObject(obj)
+    if not obj or not obj:IsA("GuiObject") then return end
+
+    local x = obj.AbsolutePosition.X + obj.AbsoluteSize.X/2
+    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y/2
+
+    VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
 end
 
--- ===== MAIN FARM FUNCTION =====
-local function runFarm()
-    print("\n[HAVOC FARM] Cycle start")
+local function clickCenter()
+    local v = Workspace.CurrentCamera.ViewportSize
+    local x, y = v.X/2, v.Y/2
+    VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
 
-    --------------------------------------------------------------------
-    -- Skip to Main Menu
-    task.wait(0.5)
-    voltClick(968, 597)
-    task.wait(0.15)
+-- ===== WAIT FOR MAIN MENU =====
+local function waitForMainMenu()
+    while true do
+        clickCenter()
+        task.wait(0.1)
 
-    --------------------------------------------------------------------
-    -- Main Menu → Traders
-    task.wait(0.5)
-    voltClick(866, 1062)
-    task.wait(0.15)
+        local ui = PlayerGui:FindFirstChild("UI")
+        if ui then
+            local mm = ui:FindFirstChild("mainMenuFrame")
+            if mm and mm:FindFirstChild("lobbyBottom") and mm.lobbyBottom.Visible then
+                return mm.lobbyBottom
+            end
+        end
+    end
+end
 
-    --------------------------------------------------------------------
-    -- Click Trader (Dragov)
-    task.wait(0.5)
-    voltClick(646, 452)
-    task.wait(0.15)
-    voltClick(646, 452)
-    task.wait(0.15)
+-- ===== SELL ALL ITEMS =====
+local function sellAll()
+    local ui = PlayerGui:FindFirstChild("UI")
+    if not ui then return end
 
-    --------------------------------------------------------------------
-    -- Dialogue Choice
-    task.wait(0.4)
-    voltClick(662, 852)
-    task.wait(0.15)
+    local hud = ui:FindFirstChild("HUD")
+    if not hud then return end
 
-    --------------------------------------------------------------------
-    -- Back to Inventory
-    task.wait(0.7)
-    voltClick(159, 86)
-    task.wait(0.15)
+    local backpack = hud:FindFirstChild("backpackFrame")
+    if not backpack then return end
 
-    --------------------------------------------------------------------
-    -- Open Sell Menu
-    task.wait(0.5)
-    voltClick(1293, 164)
-    task.wait(0.15)
+    local trader = backpack:FindFirstChild("traderCenterFrame") or backpack:FindFirstChild("trader")
+    if not trader then return end
 
-    --------------------------------------------------------------------
-    -- Click All 17 Sellable Items
-    local items = {
-        {1293,164}, {986,186}, {924,185}, {860,189},
-        {808,182}, {805,244}, {882,251}, {655,412},
-        {243,418}, {245,268}, {652,279}, {224,535},
-        {344,682}, {274,793}, {585,796}, {652,537},
-        {634,665},
-    }
+    local sellSwitch = trader:FindFirstChild("traderSellButton")
+    local dealButton = trader:FindFirstChild("dealButtonFrame") and trader.dealButtonFrame:FindFirstChild("dealButton")
 
-    task.wait(0.02)
-    for _, pos in ipairs(items) do
-        voltClick(pos[1], pos[2])
-        task.wait(0.08)
+    if sellSwitch then clickObject(sellSwitch) end
+    task.wait(0.25)
+
+    local playerContainer = backpack:FindFirstChild("player")
+    if not playerContainer then return end
+
+    local pocket
+    for _, child in ipairs(playerContainer:GetChildren()) do
+        if child:IsA("Frame") and child.Name == "inventoryFrame" then
+            pocket = child
+            break
+        end
     end
 
-    --------------------------------------------------------------------
-    -- Final Sell Confirm
-    task.wait(0.5)
-    voltClick(1185, 884)
-    task.wait(0.2)
+    if not pocket then return end
 
-    --------------------------------------------------------------------
+    local items = pocket:FindFirstChild("items") or pocket
+    for _, itemFrame in ipairs(items:GetChildren()) do
+        if itemFrame:IsA("Frame") then
+            local button = itemFrame:FindFirstChild("button")
+            if button then clickObject(button) end
+            task.wait(0.05)
+        end
+    end
+
+    if dealButton then clickObject(dealButton) end
+    task.wait(0.5)
+end
+
+-- ===== MAIN LOOP =====
+while true do
+    local lobbyBottom = waitForMainMenu()
+
+    -- Click Traders
+    local traders = lobbyBottom.main and lobbyBottom.main:FindFirstChild("traders")
+    if traders then clickObject(traders) end
+    task.wait(0.5)
+
+    -- Select Dragov
+    local traderList = PlayerGui.UI.HUD:FindFirstChild("traderListFrame")
+    if traderList then
+        local contents = traderList:FindFirstChild("contents")
+        if contents then
+            local dragov = contents:FindFirstChild("Dragov") or contents:FindFirstChildWhichIsA("TextButton")
+            if dragov then clickObject(dragov) end
+        end
+    end
+    task.wait(0.5)
+
+    -- Dialogue loop
+    local dialogueFrame = PlayerGui.UI.temp:FindFirstChild("dialogueFrame")
+    while dialogueFrame do
+        clickCenter()
+        task.wait(0.1)
+
+        local choice1 = dialogueFrame.main.dialogueChoices:FindFirstChild("1")
+        if choice1 then clickObject(choice1) end
+
+        dialogueFrame = PlayerGui.UI.temp:FindFirstChild("dialogueFrame")
+    end
+
+    -- Sell everything
+    sellAll()
+
     -- Counters
     _G.relogCount = (_G.relogCount % 100) + 1
     _G.moneyEarned = _G.moneyEarned + 7446
 
-    local runtime = os.time() - _G.startTime
-
-    print("\n[HAVOC FARM STATUS]")
-    print("Relogs:", _G.relogCount, "/ 100")
+    print("Relogs:", _G.relogCount)
     print("Money Earned:", _G.moneyEarned)
-    print("Runtime:", string.format("%02d:%02d:%02d",
-        math.floor(runtime/3600),
-        math.floor((runtime%3600)/60),
-        runtime%60
-    ))
-    print("------------------------------------")
 
-    --------------------------------------------------------------------
-    -- Teleport (rejoin)
+    -- Teleport (auto-restart)
     TeleportService:Teleport(game.PlaceId)
-end
-
--- ===== AUTO‑RESTART LOOP =====
-while true do
-    runFarm()
-    task.wait(10) -- wait for teleport + reload
+    task.wait(5)
 end
