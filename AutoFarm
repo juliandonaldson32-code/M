@@ -26,12 +26,15 @@ _G.startTime = _G.startTime or os.time()
 print("CLICK INTO THE GAME WINDOW — FARM STARTS IN 5 SECONDS")
 task.wait(5)
 
+-- ===== OFFSET (fixes high-click issue) =====
+local CLICK_OFFSET_Y = 50
+
 -- ===== UI CLICKER =====
 local function clickObject(obj)
     if not obj or not obj:IsA("GuiObject") then return end
 
     local x = obj.AbsolutePosition.X + obj.AbsoluteSize.X/2
-    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y/2
+    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y/2 + CLICK_OFFSET_Y
 
     VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
     task.wait(0.05)
@@ -42,7 +45,9 @@ end
 
 local function clickCenter()
     local v = Workspace.CurrentCamera.ViewportSize
-    local x, y = v.X/2, v.Y/2
+    local x = v.X/2
+    local y = v.Y/2 + CLICK_OFFSET_Y
+
     VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
     task.wait(0.05)
     VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
