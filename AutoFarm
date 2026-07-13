@@ -1,4 +1,7 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
+local CLICK_OFFSET_Y = 50
+
+if _G.farmLoopRunning then return end
+_G.farmLoopRunning = true
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -8,7 +11,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
--- ===== queue_on_teleport (AUTO-RESTART) =====
+-- ===== queue_on_teleport (auto restart) =====
 local queueteleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 
 Players.LocalPlayer.OnTeleport:Connect(function()
@@ -17,42 +20,133 @@ Players.LocalPlayer.OnTeleport:Connect(function()
     end
 end)
 
--- ===== GLOBAL STATE =====
-_G.relogCount = _G.relogCount or 0
-_G.moneyEarned = _G.moneyEarned or 0
-_G.startTime = _G.startTime or os.time()
-
--- ===== STARTUP WARNING =====
-print("CLICK INTO THE GAME WINDOW — FARM STARTS IN 5 SECONDS")
-task.wait(5)
-
--- ===== OFFSET (fixes high-click issue) =====
-local CLICK_OFFSET_Y = 50
-
--- ===== UI CLICKER =====
+-- ===== UI CLICKER (EXACT COPY) =====
 local function clickObject(obj)
     if not obj or not obj:IsA("GuiObject") then return end
 
-    local x = obj.AbsolutePosition.X + obj.AbsoluteSize.X/2
-    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y/2 + CLICK_OFFSET_Y
+    if obj:IsA("GuiButton") then
+        pcall(function()
+            obj.Active = true
+            obj.Visible = true
+        end)
+    end
 
-    VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
-    task.wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
-    task.wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    local x = obj.AbsolutePosition.X + obj.AbsoluteSize.X / 2
+    local y = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y / 2 + CLICK_OFFSET_Y
+
+    pcall(function()
+        VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    end)
+
+    if obj:IsA("GuiButton") then
+        pcall(function()
+            if obj.MouseButton1Click then obj.MouseButton1Click:Fire() end
+            if obj.MouseButton1Down then obj.MouseButton1Down:Fire() task.wait(0.02) end
+            if obj.MouseButton1Up then obj.MouseButton1Up:Fire() end
+            if obj.Activated then obj.Activated:Fire() end
+        end)
+    end
+
+    pcall(function()
+        local touchBegin = { Position = Vector2.new(x, y), UserInputState = Enum.UserInputState.Begin, Touch = true }
+        UserInputService:FireInputEvent(touchBegin)
+        task.wait(0.05)
+        local touchEnd = { Position = Vector2.new(x, y), UserInputState = Enum.UserInputState.End, Touch = true }
+        UserInputService:FireInputEvent(touchEnd)
+    end)
 end
 
 local function clickCenter()
-    local v = Workspace.CurrentCamera.ViewportSize
-    local x = v.X/2
-    local y = v.Y/2 + CLICK_OFFSET_Y
+    local viewport = Workspace.CurrentCamera.ViewportSize
+    local x = viewport.X / 2
+    local y = viewport.Y / 2 + CLICK_OFFSET_Y
 
-    VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
-    task.wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
-    task.wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    pcall(function()
+        VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    end)
+
+    pcall(function()
+        local touchBegin = { Position = Vector2.new(x, y), UserInputState = Enum.UserInputState.Begin, Touch = true }
+        UserInputService:FireInputEvent(touchBegin)
+        task.wait(0.05)
+        local touchEnd = { Position = Vector2.new(x, y), UserInputState = Enum.UserInputState.End, Touch = true }
+        UserInputService:FireInputEvent(touchEnd)
+    end)
+end
+
+-- ===== SELL ALL (UI version) =====
+local function sellAll()
+    local ui = PlayerGui:FindFirstChild("UI")
+    if not ui then return end
+
+    local hud = ui:FindFirstChild("HUD")
+    if not hud then return end
+
+    local backpack = hud:FindFirstChild("backpackFrame")
+    if not backpack then return end
+
+    local trader = backpack:FindFirstChild("traderCenterFrame") or backpack:FindFirstChild("trader")
+    if not trader then return end
+
+    local tradesellswitch = trader:FindFirstChild("traderSellButton")
+    local realsellbutton = trader:FindFirstChild("dealButtonFrame") and trader.dealButtonFrame:FindFirstChild("dealButton")
+
+    if tradesellswitch then clickObject(tradesellswitch) end
+    task.wait(0.25)
+
+    local playerContainer = backpack:FindFirstChild("player")
+    if not playerContainer then return end
+
+    local pocket
+    for _, child in ipairs(playerContainer:GetChildren()) do
+        if child:IsA("Frame") and child.Name == "inventoryFrame" then
+            pocket = child
+            break
+        end
+    end
+
+    if not pocket then return end
+
+    local itemsContainer = pocket:FindFirstChild("items") or pocket
+    for _, itemFrame in ipairs(itemsContainer:GetChildren()) do
+        if itemFrame:IsA("Frame") then
+            local button = itemFrame:FindFirstChild("button")
+            if button then clickObject(button) end
+            task.wait(0.05)
+        end
+    end
+
+    if realsellbutton then clickObject(realsellbutton) end
+    task.wait(0.5)
+end
+
+-- ===== PROMPT CHECK =====
+local function checkPrompt()
+    local ui = PlayerGui:FindFirstChild("UI")
+    if not ui then return false end
+
+    local prompt = ui:FindFirstChild("__prompt")
+    if not prompt then return false end
+
+    local promptButtons = prompt:FindFirstChild("promptButtons")
+    if not promptButtons then return false end
+
+    local promptButton1 = promptButtons:FindFirstChild("promptButton1")
+    if promptButton1 and promptButton1.Visible then
+        clickObject(promptButton1)
+        task.wait(0.5)
+        return true
+    end
+
+    return false
 end
 
 -- ===== WAIT FOR MAIN MENU =====
@@ -71,62 +165,19 @@ local function waitForMainMenu()
     end
 end
 
--- ===== SELL ALL ITEMS =====
-local function sellAll()
-    local ui = PlayerGui:FindFirstChild("UI")
-    if not ui then return end
-
-    local hud = ui:FindFirstChild("HUD")
-    if not hud then return end
-
-    local backpack = hud:FindFirstChild("backpackFrame")
-    if not backpack then return end
-
-    local trader = backpack:FindFirstChild("traderCenterFrame") or backpack:FindFirstChild("trader")
-    if not trader then return end
-
-    local sellSwitch = trader:FindFirstChild("traderSellButton")
-    local dealButton = trader:FindFirstChild("dealButtonFrame") and trader.dealButtonFrame:FindFirstChild("dealButton")
-
-    if sellSwitch then clickObject(sellSwitch) end
-    task.wait(0.25)
-
-    local playerContainer = backpack:FindFirstChild("player")
-    if not playerContainer then return end
-
-    local pocket
-    for _, child in ipairs(playerContainer:GetChildren()) do
-        if child:IsA("Frame") and child.Name == "inventoryFrame" then
-            pocket = child
-            break
-        end
-    end
-
-    if not pocket then return end
-
-    local items = pocket:FindFirstChild("items") or pocket
-    for _, itemFrame in ipairs(items:GetChildren()) do
-        if itemFrame:IsA("Frame") then
-            local button = itemFrame:FindFirstChild("button")
-            if button then clickObject(button) end
-            task.wait(0.05)
-        end
-    end
-
-    if dealButton then clickObject(dealButton) end
-    task.wait(0.5)
-end
-
 -- ===== MAIN LOOP =====
 while true do
     local lobbyBottom = waitForMainMenu()
 
-    -- Click Traders
+    for _ = 1, 5 do
+        if checkPrompt() then break end
+        task.wait(0.1)
+    end
+
     local traders = lobbyBottom.main and lobbyBottom.main:FindFirstChild("traders")
     if traders then clickObject(traders) end
     task.wait(0.5)
 
-    -- Select Dragov
     local traderList = PlayerGui.UI.HUD:FindFirstChild("traderListFrame")
     if traderList then
         local contents = traderList:FindFirstChild("contents")
@@ -137,7 +188,6 @@ while true do
     end
     task.wait(0.5)
 
-    -- Dialogue loop
     local dialogueFrame = PlayerGui.UI.temp:FindFirstChild("dialogueFrame")
     while dialogueFrame do
         clickCenter()
@@ -149,17 +199,8 @@ while true do
         dialogueFrame = PlayerGui.UI.temp:FindFirstChild("dialogueFrame")
     end
 
-    -- Sell everything
     sellAll()
 
-    -- Counters
-    _G.relogCount = (_G.relogCount % 100) + 1
-    _G.moneyEarned = _G.moneyEarned + 7446
-
-    print("Relogs:", _G.relogCount)
-    print("Money Earned:", _G.moneyEarned)
-
-    -- Teleport (auto-restart)
     TeleportService:Teleport(game.PlaceId)
     task.wait(5)
 end
