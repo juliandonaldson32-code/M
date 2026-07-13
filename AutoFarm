@@ -1,7 +1,5 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== GLOBAL STATE =====
@@ -22,8 +20,8 @@ local function voltClick(x, y)
     mouse1release()
 end
 
--- ===== MAIN LOOP =====
-while true do
+-- ===== MAIN FARM FUNCTION =====
+local function runFarm()
     print("\n[HAVOC FARM] Cycle start")
 
     --------------------------------------------------------------------
@@ -54,7 +52,7 @@ while true do
 
     --------------------------------------------------------------------
     -- Back to Inventory
-    task.wait(0.5)
+    task.wait(0.7)
     voltClick(159, 86)
     task.wait(0.15)
 
@@ -106,5 +104,10 @@ while true do
     --------------------------------------------------------------------
     -- Teleport (rejoin)
     TeleportService:Teleport(game.PlaceId)
-    task.wait(8)
+end
+
+-- ===== AUTO‑RESTART LOOP =====
+while true do
+    runFarm()
+    task.wait(10) -- wait for teleport + reload
 end
