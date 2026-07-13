@@ -9,7 +9,8 @@ _G.relogCount = _G.relogCount or 0
 _G.moneyEarned = _G.moneyEarned or 0
 _G.startTime = _G.startTime or os.time()
 
--- ===== WAIT 5 SECONDS BEFORE START =====
+-- ===== STARTUP MESSAGE =====
+print("CLICK INTO THE GAME WINDOW — FARM STARTS IN 5 SECONDS")
 task.wait(5)
 
 -- ===== CLICK FUNCTION =====
